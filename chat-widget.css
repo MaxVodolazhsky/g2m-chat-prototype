@@ -123,7 +123,7 @@
 .g2m-chat .g2m-chat-input:focus, .g2m-chat .g2m-chat-textarea:focus, .g2m-chat .g2m-chat-composer-input:focus {
   outline: none; border-color: var(--g2m-primary); box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.15);
 }
-.g2m-chat-input--error { border-color: #ef4444; }
+.g2m-chat .g2m-chat-input--error { border-color: #ef4444; }
 .g2m-chat-error { font-size: 12px; color: #ef4444; }
 
 /* messages */

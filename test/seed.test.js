@@ -1,7 +1,9 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
 const { createChatStore } = require('../chat-store.js');
-const { buildSeed, seedIfEmpty, TINY_PNG } = require('../seed.js');
+const fs = require('node:fs');
+const path = require('node:path');
+const { buildSeed, seedIfEmpty, DEMO_IMAGE } = require('../seed.js');
 
 function memStorage() {
   const map = new Map();
@@ -42,7 +44,7 @@ test('buildSeed: статусы, инициаторы и счётчики по �
   const c3last = seed.messages.filter((m) => m.chatId === 'c_seed3').pop();
   assert.equal(c3last.from, 'system');
   const c4img = seed.messages.find((m) => m.chatId === 'c_seed4');
-  assert.equal(c4img.image, TINY_PNG);
+  assert.equal(c4img.image, DEMO_IMAGE);
 });
 
 test('seedIfEmpty: заполняет пустой store один раз', () => {
@@ -56,11 +58,11 @@ test('seedIfEmpty: заполняет пустой store один раз', () =>
   assert.deepEqual(store.listChats({ userId: 'u1' }).map((c) => c.id), ['c_seed1', 'c_seed2', 'c_seed3']);
 });
 
-test('TINY_PNG — валидный PNG 64x40', () => {
-  const b64 = TINY_PNG.replace(/^data:image\/png;base64,/, '');
-  const buf = Buffer.from(b64, 'base64');
+test('DEMO_IMAGE указывает на существующий PNG 720x460 в assets', () => {
+  assert.equal(DEMO_IMAGE, 'assets/demo-screenshot.png');
+  const buf = fs.readFileSync(path.join(__dirname, '..', DEMO_IMAGE));
   assert.equal(buf.subarray(0, 8).toString('hex'), '89504e470d0a1a0a');
   assert.equal(buf.subarray(12, 16).toString('ascii'), 'IHDR');
-  assert.equal(buf.readUInt32BE(16), 64);
-  assert.equal(buf.readUInt32BE(20), 40);
+  assert.equal(buf.readUInt32BE(16), 720);
+  assert.equal(buf.readUInt32BE(20), 460);
 });

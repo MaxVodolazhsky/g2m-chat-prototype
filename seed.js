@@ -2,7 +2,8 @@
 (function (root) {
   'use strict';
 
-  var TINY_PNG = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAEAAAAAoCAIAAADBrGu+AAAAPklEQVR42u3PQQkAAAgEsOtfzbcBbGIGn8JgBZbqeS0CAgICAgICAgICAgICAgICAgICAgICAgICAgICAhcLKogLeNRcJecAAAAASUVORK5CYII=';
+  // Демо-скриншот ошибки «код уже погашен» (assets/demo-screenshot.png, 720x460). В реальных сообщениях картинки — data URL.
+  var DEMO_IMAGE = 'assets/demo-screenshot.png';
 
   var MIN = 60000, HOUR = 3600000, DAY = 86400000;
 
@@ -65,7 +66,7 @@
 
     // 4. u2, code_issue, open, час назад, с картинкой, не прочитан админом
     var c4 = chat('c_seed4', 'u2', 'code_issue', null, 'open', 'user', now - HOUR);
-    msg(c4, 'user', 'This code shows as already redeemed, but I never used it. Screenshot attached.', now - HOUR, { unread: true, image: TINY_PNG });
+    msg(c4, 'user', 'This code shows as already redeemed, but I never used it. Screenshot attached.', now - HOUR, { unread: true, image: DEMO_IMAGE });
 
     // 5. u3, payout, закрыт неделю назад
     var c5 = chat('c_seed5', 'u3', 'payout', null, 'open', 'user', now - 7 * DAY);
@@ -82,7 +83,7 @@
     return true;
   }
 
-  var api = { buildSeed: buildSeed, seedIfEmpty: seedIfEmpty, TINY_PNG: TINY_PNG };
+  var api = { buildSeed: buildSeed, seedIfEmpty: seedIfEmpty, DEMO_IMAGE: DEMO_IMAGE };
   root.G2MChatSeed = api;
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
 })(typeof window !== 'undefined' ? window : globalThis);

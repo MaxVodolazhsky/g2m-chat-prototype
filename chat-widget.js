@@ -104,8 +104,7 @@
   }
   function updateBanner() { bannerEl.hidden = !store.isDegraded(); }
   function scrollToBottom() {
-    var list = bodyEl.querySelector('.g2m-chat-messages');
-    if (list) list.scrollTop = list.scrollHeight;
+    bodyEl.scrollTop = bodyEl.scrollHeight;
   }
 
   /* ---------- render ---------- */
@@ -226,7 +225,7 @@
       statusEl.textContent = t(chat.status);
       statusEl.className = 'g2m-chat-subtitle g2m-chat-status g2m-chat-status--' + chat.status;
     }
-    var atBottom = list.scrollHeight - list.scrollTop - list.clientHeight < 40;
+    var atBottom = bodyEl.scrollHeight - bodyEl.scrollTop - bodyEl.clientHeight < 40;
     renderChatMessages(chat);
     if (chat.status === 'closed' && !wasClosed) renderChatFooter(chat);
     if (atBottom) scrollToBottom();

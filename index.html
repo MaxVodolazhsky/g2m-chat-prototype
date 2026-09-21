@@ -139,6 +139,11 @@
     <p class="disclaimer">gift2money has no relation to Google Play, Valve, Vanilla, Best Buy, Footlocker, Gamestop, Netflix, Nike, Nordstrom, Sephora, OffGamers, eBay, Amazon, Razer, Target, Walmart, XBOX, Microsoft or any other payment method. We make no claims about being supported by or supporting these services. Their respective wordmarks and trademarks belong to them alone. All rights reserved. v. 1.7 <a href="#">Privacy Policy</a></p>
   </footer>
 
-  <!-- chat widget -->
+  <!-- chat widget injection (in production this becomes a single bundle + one <script>) -->
+  <link rel="stylesheet" href="chat-widget.css">
+  <script src="chat-common.js"></script>
+  <script src="chat-store.js"></script>
+  <script src="seed.js"></script>
+  <script src="chat-widget.js"></script>
 </body>
 </html>

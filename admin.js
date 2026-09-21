@@ -158,20 +158,71 @@
     scrollToBottom();
   }
 
+  function highlightMatch(name, q) {
+    if (!q) return esc(name);
+    var i = name.toLowerCase().indexOf(q.toLowerCase());
+    if (i === -1) return esc(name);
+    return esc(name.slice(0, i)) + '<mark>' + esc(name.slice(i, i + q.length)) + '</mark>' + esc(name.slice(i + q.length));
+  }
+
+  function userResultsHtml(m) {
+    if (!m.userOpen) return '';
+    var q = m.userQuery.trim();
+    var results = S.findUsers(q, 8);
+    if (!results.length) return '<div class="user-results"><div class="user-empty">' + esc(t('noUsersFound')) + '</div></div>';
+    return '<div class="user-results" role="listbox">' + results.map(function (u, i) {
+      return '<button type="button" class="user-result' + (i === m.userIndex ? ' user-result--active' : '') + '" role="option" ' +
+        'aria-selected="' + (i === m.userIndex) + '" data-action="pick-user" data-id="' + esc(u.id) + '">' + highlightMatch(u.name, q) + '</button>';
+    }).join('') + '</div>';
+  }
+
+  function userPickerHtml(m) {
+    if (m.userId) {
+      return '<div class="user-chip"><span>' + esc(userName(m.userId)) + '</span>' +
+        '<button type="button" class="user-chip-remove" data-action="clear-user" aria-label="' + esc(t('changeUser')) + '">' + ICONS.close + '</button></div>';
+    }
+    return '<div class="user-picker">' +
+      '<input class="input' + (m.errors.user ? ' input--error' : '') + '" name="userQuery" autocomplete="off" role="combobox" aria-expanded="' + !!m.userOpen + '" ' +
+        'placeholder="' + esc(t('userSearchPlaceholder')) + '" value="' + esc(m.userQuery) + '">' +
+      '<div class="user-results-host">' + userResultsHtml(m) + '</div>' +
+    '</div>';
+  }
+
+  // Перерисовать только список совпадений, не трогая input (иначе теряется фокус и каретка).
+  function renderUserResults() {
+    var host = modalCard.querySelector('.user-results-host');
+    if (!host || !state.modal) return;
+    host.innerHTML = userResultsHtml(state.modal);
+    var input = modalCard.querySelector('input[name="userQuery"]');
+    if (input) input.setAttribute('aria-expanded', String(!!state.modal.userOpen));
+  }
+
+  function renderUserPicker() {
+    var host = modalCard.querySelector('.user-picker-host');
+    if (!host || !state.modal) return;
+    host.innerHTML = userPickerHtml(state.modal);
+  }
+
+  function pickUser(id) {
+    var m = state.modal;
+    if (!m || !S.USERS.some(function (u) { return u.id === id; })) return;
+    m.userId = id;
+    m.userOpen = false;
+    delete m.errors.user;
+    renderModal();
+  }
+
   function renderModal() {
     if (!state.modal) { modalEl.hidden = true; return; }
     var m = state.modal;
     var err = function (k) { return k ? '<div class="error">' + esc(t(k)) + '</div>' : ''; };
-    var users = S.USERS.map(function (u) {
-      return '<option value="' + u.id + '"' + (m.userId === u.id ? ' selected' : '') + '>' + esc(u.name) + '</option>';
-    }).join('');
     var chips = C.TOPIC_CODES.map(function (code) {
       return '<button type="button" class="chip' + (m.topicCode === code ? ' chip--active' : '') + '" data-action="pick-topic" data-code="' + code + '">' + esc(t('topics.' + code)) + '</button>';
     }).join('');
     modalCard.innerHTML =
       '<div class="modal-title">' + esc(t('newChat')) + '</div>' +
       '<label class="label">' + esc(t('user')) + '</label>' +
-      '<select class="input" name="userId">' + users + '</select>' +
+      '<div class="user-picker-host">' + userPickerHtml(m) + '</div>' + err(m.errors.user) +
       '<label class="label">' + esc(t('topicLabel')) + '</label>' +
       '<div class="chips">' + chips + '</div>' + err(m.errors.topic) +
       (m.topicCode === 'other'
@@ -237,6 +288,7 @@
   function startChat() {
     var m = state.modal;
     var errors = {};
+    if (!m.userId) errors.user = 'userRequired';
     if (!m.topicCode) errors.topic = 'topicRequired';
     if (m.topicCode === 'other' && !m.topicTitle.trim()) errors.topicTitle = 'customTopicRequired';
     if (!m.text.trim()) errors.text = 'messageRequired';
@@ -251,6 +303,10 @@
   }
 
   document.addEventListener('click', function (e) {
+    if (state.modal && state.modal.userOpen && !e.target.closest('.user-picker')) {
+      state.modal.userOpen = false;
+      renderUserResults();
+    }
     var target = e.target.closest('[data-action]');
     if (!target) return;
     // клики внутри карточки модалки не должны закрывать модалку через оверлей
@@ -259,7 +315,20 @@
     switch (action) {
       case 'filter': state.filter = target.getAttribute('data-filter'); renderTabs(); renderList(); break;
       case 'select': selectChat(target.getAttribute('data-id')); break;
-      case 'open-modal': state.modal = { userId: S.USERS[0].id, topicCode: null, topicTitle: '', text: '', errors: {} }; renderModal(); break;
+      case 'open-modal':
+        state.modal = { userId: null, userQuery: '', userOpen: false, userIndex: 0, topicCode: null, topicTitle: '', text: '', errors: {} };
+        renderModal();
+        { var uq = modalCard.querySelector('input[name="userQuery"]'); if (uq) uq.focus(); }
+        break;
+      case 'pick-user': pickUser(target.getAttribute('data-id')); break;
+      case 'clear-user':
+        state.modal.userId = null;
+        state.modal.userQuery = '';
+        state.modal.userOpen = false;
+        state.modal.userIndex = 0;
+        renderUserPicker();
+        { var uq2 = modalCard.querySelector('input[name="userQuery"]'); if (uq2) uq2.focus(); }
+        break;
       case 'close-modal': state.modal = null; renderModal(); break;
       case 'pick-topic': state.modal.topicCode = target.getAttribute('data-code'); state.modal.errors = {}; renderModal(); break;
       case 'start': startChat(); break;
@@ -290,7 +359,13 @@
       var b = convEl.querySelector('.sendbtn');
       if (b) b.disabled = !canSend();
     } else if (state.modal) {
-      if (el.name === 'userId') state.modal.userId = el.value;
+      if (el.name === 'userQuery') {
+        if (e.type !== 'input') return; // 'change' на blur не должен заново открывать список
+        state.modal.userQuery = el.value;
+        state.modal.userOpen = true;
+        state.modal.userIndex = 0;
+        renderUserResults();
+      }
       else if (el.name === 'topicTitle') state.modal.topicTitle = el.value;
       else if (el.name === 'text') state.modal.text = el.value;
     }
@@ -298,7 +373,39 @@
   document.addEventListener('input', onInput);
   document.addEventListener('change', onInput);
 
+  document.addEventListener('focusin', function (e) {
+    if (state.modal && e.target && e.target.name === 'userQuery' && !state.modal.userOpen) {
+      state.modal.userOpen = true;
+      state.modal.userIndex = 0;
+      renderUserResults();
+    }
+  });
+
   document.addEventListener('keydown', function (e) {
+    if (state.modal && e.target && e.target.name === 'userQuery') {
+      var m = state.modal;
+      var results = S.findUsers(m.userQuery, 8);
+      if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+        e.preventDefault();
+        if (!m.userOpen) { m.userOpen = true; m.userIndex = 0; }
+        else if (results.length) {
+          m.userIndex = e.key === 'ArrowDown' ? Math.min(m.userIndex + 1, results.length - 1) : Math.max(m.userIndex - 1, 0);
+        }
+        renderUserResults();
+        return;
+      }
+      if (e.key === 'Enter') {
+        e.preventDefault();
+        if (m.userOpen && results[m.userIndex]) pickUser(results[m.userIndex].id);
+        return;
+      }
+      if (e.key === 'Escape' && m.userOpen) {
+        e.preventDefault();
+        m.userOpen = false;
+        renderUserResults();
+        return;
+      }
+    }
     if (e.key === 'Enter' && !e.shiftKey && e.target && e.target.name === 'message') {
       e.preventDefault();
       sendCurrent();

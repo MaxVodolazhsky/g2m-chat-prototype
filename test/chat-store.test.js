@@ -222,3 +222,33 @@ test('reset: с данными и без', () => {
   store.reset();
   assert.equal(store.isEmpty(), true);
 });
+
+const { USERS, findUsers } = require('../chat-store.js');
+
+test('USERS: 15 демо-пользователей с уникальными id и email, первые три прежние', () => {
+  assert.equal(USERS.length, 15);
+  assert.equal(new Set(USERS.map((u) => u.id)).size, 15);
+  assert.equal(new Set(USERS.map((u) => u.name)).size, 15);
+  assert.deepEqual(USERS.slice(0, 3).map((u) => u.name), ['demo@gift2money.com', 'alice@example.com', 'bob@example.com']);
+});
+
+test('findUsers: пустой запрос → первые limit пользователей', () => {
+  assert.deepEqual(findUsers('', 8).map((u) => u.id), USERS.slice(0, 8).map((u) => u.id));
+  assert.equal(findUsers('   ').length, 8);          // limit по умолчанию 8
+  assert.equal(findUsers(undefined, 3).length, 3);
+});
+
+test('findUsers: подстрока без учёта регистра, порядок как в USERS, лимит', () => {
+  assert.deepEqual(findUsers('ALICE').map((u) => u.name), ['alice@example.com']);
+  const ex = findUsers('example.com', 100);
+  assert.ok(ex.length >= 10);
+  assert.ok(ex.every((u) => u.name.indexOf('example.com') !== -1));
+  assert.equal(findUsers('example.com', 4).length, 4);
+  assert.deepEqual(findUsers('zzz-nobody'), []);
+});
+
+test('findUsers возвращает копии', () => {
+  const [u] = findUsers('demo');
+  u.name = 'hacked';
+  assert.equal(USERS[0].name, 'demo@gift2money.com');
+});

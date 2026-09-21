@@ -7,10 +7,33 @@
   var USERS = [
     { id: 'u1', name: 'demo@gift2money.com' },
     { id: 'u2', name: 'alice@example.com' },
-    { id: 'u3', name: 'bob@example.com' }
+    { id: 'u3', name: 'bob@example.com' },
+    { id: 'u4', name: 'carol.smith@example.com' },
+    { id: 'u5', name: 'dave.miller@gmail.com' },
+    { id: 'u6', name: 'erin.jones@example.com' },
+    { id: 'u7', name: 'frank.wu@outlook.com' },
+    { id: 'u8', name: 'grace.lee@example.com' },
+    { id: 'u9', name: 'heidi.k@proton.me' },
+    { id: 'u10', name: 'ivan.petrov@example.com' },
+    { id: 'u11', name: 'judy.chen@example.com' },
+    { id: 'u12', name: 'kai.nakamura@example.com' },
+    { id: 'u13', name: 'liam.oconnor@example.com' },
+    { id: 'u14', name: 'maria.garcia@example.com' },
+    { id: 'u15', name: 'noah.b@example.com' }
   ];
   var CURRENT_USER = USERS[0];
   var TOPIC_CODES = ['code_issue', 'payout', 'account', 'other'];
+
+  // Поиск пользователя по подстроке email (без учёта регистра), порядок как в USERS.
+  function findUsers(query, limit) {
+    var q = String(query == null ? '' : query).trim().toLowerCase();
+    var max = limit == null ? 8 : limit;
+    var out = [];
+    for (var i = 0; i < USERS.length && out.length < max; i++) {
+      if (!q || USERS[i].name.toLowerCase().indexOf(q) !== -1) out.push({ id: USERS[i].id, name: USERS[i].name });
+    }
+    return out;
+  }
 
   function genId(prefix) {
     return prefix + Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
@@ -242,7 +265,8 @@
     VERSION: VERSION,
     USERS: USERS,
     CURRENT_USER: CURRENT_USER,
-    TOPIC_CODES: TOPIC_CODES
+    TOPIC_CODES: TOPIC_CODES,
+    findUsers: findUsers
   };
 
   root.G2MChatStore = api;

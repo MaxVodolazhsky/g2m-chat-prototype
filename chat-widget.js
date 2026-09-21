@@ -206,12 +206,140 @@
     var chat = store.getChat(ui.chatId);
     if (!chat) { setScreen('list'); return; }
     headerEl.innerHTML = iconButton('back', 'back', ICONS.back) +
-      '<div class="g2m-chat-header-text"><div class="g2m-chat-title">' + esc(C.topicTitle(chat)) + '</div></div>' +
+      '<div class="g2m-chat-header-text"><div class="g2m-chat-title">' + esc(C.topicTitle(chat)) + '</div>' +
+      '<div class="g2m-chat-subtitle g2m-chat-status g2m-chat-status--' + chat.status + '">' + esc(t(chat.status)) + '</div></div>' +
       iconButton('close', 'close', ICONS.close);
-    bodyEl.innerHTML = '<div class="g2m-chat-empty">…</div>';
-    footerEl.innerHTML = '';
+    bodyEl.innerHTML = '<div class="g2m-chat-messages"></div>';
+    renderChatMessages(chat);
+    renderChatFooter(chat);
+    scrollToBottom();
   }
-  function renderChatUpdate() { renderChat(); }
+
+  function renderChatUpdate() {
+    var chat = store.getChat(ui.chatId);
+    if (!chat) { setScreen('list'); return; }
+    var list = bodyEl.querySelector('.g2m-chat-messages');
+    if (!list) { renderChat(); return; }
+    var statusEl = headerEl.querySelector('.g2m-chat-status');
+    var wasClosed = !!(statusEl && statusEl.classList.contains('g2m-chat-status--closed'));
+    if (statusEl) {
+      statusEl.textContent = t(chat.status);
+      statusEl.className = 'g2m-chat-subtitle g2m-chat-status g2m-chat-status--' + chat.status;
+    }
+    var atBottom = list.scrollHeight - list.scrollTop - list.clientHeight < 40;
+    renderChatMessages(chat);
+    if (chat.status === 'closed' && !wasClosed) renderChatFooter(chat);
+    if (atBottom) scrollToBottom();
+  }
+
+  function renderChatMessages(chat) {
+    var list = bodyEl.querySelector('.g2m-chat-messages');
+    if (!list) return;
+    var groups = C.groupByDay(store.getMessages(chat.id));
+    list.innerHTML = groups.map(function (g) {
+      var prevFrom = null;
+      var items = g.items.map(function (m) {
+        var html = renderMessage(m, prevFrom !== m.from);
+        prevFrom = m.from;
+        return html;
+      }).join('');
+      return '<div class="g2m-chat-day">' + esc(C.dayLabel(g.day)) + '</div>' + items;
+    }).join('');
+  }
+
+  function renderMessage(m, first) {
+    if (m.from === 'system') return '<div class="g2m-chat-system">' + esc(C.messagePreview(m)) + '</div>';
+    var mine = m.from === 'user';
+    var ticks = '';
+    if (mine) {
+      ticks = '<span class="g2m-chat-ticks' + (m.readAt ? ' g2m-chat-ticks--read' : '') + '" title="' +
+        esc(t(m.readAt ? 'reads.read' : 'reads.sent')) + '">' + (m.readAt ? ICONS.checkDouble : ICONS.check) + '</span>';
+    }
+    return '<div class="g2m-chat-msg g2m-chat-msg--' + (mine ? 'me' : 'them') + (first ? ' g2m-chat-msg--first' : '') + '">' +
+      (!mine && first ? '<div class="g2m-chat-msg-author">' + esc(t('support')) + '</div>' : '') +
+      '<div class="g2m-chat-bubble">' +
+        (m.image ? '<img class="g2m-chat-msg-img" src="' + esc(m.image) + '" alt="" data-action="lightbox" data-src="' + esc(m.image) + '">' : '') +
+        (m.text ? '<div class="g2m-chat-msg-text">' + esc(m.text).replace(/\n/g, '<br>') + '</div>' : '') +
+      '</div>' +
+      '<div class="g2m-chat-msg-meta">' + esc(C.timeLabel(m.createdAt)) + ticks + '</div>' +
+    '</div>';
+  }
+
+  function renderChatFooter(chat) {
+    if (chat.status === 'closed') {
+      footerEl.innerHTML = '<div class="g2m-chat-closed-note">' + esc(t('closedNote')) + '</div>' +
+        '<button type="button" class="g2m-chat-btn g2m-chat-btn--primary" data-action="new">' + esc(t('newChat')) + '</button>';
+      return;
+    }
+    var active = document.activeElement;
+    var hadFocus = !!(active && active.name === 'message' && rootEl.contains(active));
+    footerEl.innerHTML = '<div class="g2m-chat-composer">' +
+      (composer.image
+        ? '<div class="g2m-chat-attachment"><img src="' + esc(composer.image) + '" alt="">' +
+          '<button type="button" class="g2m-chat-attachment-remove" data-action="remove-image" aria-label="' + esc(t('removeImage')) + '">' + ICONS.close + '</button></div>'
+        : '') +
+      '<div class="g2m-chat-composer-row">' +
+        iconButton('attach', 'attach', ICONS.attach) +
+        '<textarea class="g2m-chat-composer-input" name="message" rows="1" placeholder="' + esc(t('messagePlaceholder')) + '">' + esc(composer.text) + '</textarea>' +
+        '<button type="button" class="g2m-chat-sendbtn" data-action="send" aria-label="' + esc(t('send')) + '"' + (canSend() ? '' : ' disabled') + '>' + ICONS.send + '</button>' +
+        '<input type="file" accept="image/*" class="g2m-chat-file" hidden>' +
+      '</div>' +
+      (composer.error ? '<div class="g2m-chat-error">' + esc(t(composer.error)) + '</div>' : '') +
+    '</div>';
+    var ta = footerEl.querySelector('textarea[name="message"]');
+    autosize(ta);
+    if (hadFocus) { ta.focus(); ta.selectionStart = ta.selectionEnd = ta.value.length; }
+    footerEl.querySelector('.g2m-chat-file').addEventListener('change', onFileChosen);
+  }
+
+  function canSend() { return !!(composer.text.trim() || composer.image); }
+  function updateSendState() {
+    var b = footerEl.querySelector('.g2m-chat-sendbtn');
+    if (b) b.disabled = !canSend();
+  }
+  function autosize(ta) {
+    if (!ta) return;
+    ta.style.height = 'auto';
+    ta.style.height = Math.min(ta.scrollHeight, 96) + 'px';
+  }
+  function showComposerError(key) {
+    composer.error = key;
+    var chat = store.getChat(ui.chatId);
+    if (chat) renderChatFooter(chat);
+    clearTimeout(errorTimer);
+    errorTimer = setTimeout(function () {
+      composer.error = null;
+      var c = store.getChat(ui.chatId);
+      if (c && ui.screen === 'chat' && ui.open) renderChatFooter(c);
+    }, 4000);
+  }
+  function onFileChosen(e) {
+    var file = e.target.files && e.target.files[0];
+    e.target.value = '';
+    if (!file) return;
+    C.readImageFile(file).then(function (dataUrl) {
+      composer.image = dataUrl;
+      composer.error = null;
+      var chat = store.getChat(ui.chatId);
+      if (chat) renderChatFooter(chat);
+    }).catch(function (err) {
+      showComposerError(err && err.message === 'imageTooLarge' ? 'imageTooLarge' : 'imageOnly');
+    });
+  }
+  function sendCurrent() {
+    if (!canSend() || !ui.chatId) return;
+    try {
+      store.sendMessage(ui.chatId, { from: 'user', text: composer.text, image: composer.image });
+    } catch (err) {
+      return; // чат закрыт или пуст — UI уже это не позволяет
+    }
+    composer = { text: '', image: null, error: null };
+    var chat = store.getChat(ui.chatId);
+    renderChatFooter(chat);
+    scrollToBottom();
+    var ta = footerEl.querySelector('textarea[name="message"]');
+    if (ta) ta.focus();
+  }
 
   /* ---------- navigation ---------- */
   function setScreen(screen, chatId) {
@@ -252,6 +380,14 @@
         if (draft.topicCode === 'other') { var ti = bodyEl.querySelector('input[name="topicTitle"]'); if (ti) ti.focus(); }
         break;
       case 'start': startChat(); break;
+      case 'send': sendCurrent(); break;
+      case 'attach': { var f = footerEl.querySelector('.g2m-chat-file'); if (f) f.click(); break; }
+      case 'remove-image': {
+        composer.image = null;
+        var cc = store.getChat(ui.chatId);
+        if (cc) renderChatFooter(cc);
+        break;
+      }
       default: break;
     }
   });
@@ -261,12 +397,20 @@
     if (!el || !el.name) return;
     if (el.name === 'topicTitle') draft.topicTitle = el.value;
     else if (el.name === 'text') draft.text = el.value;
+    else if (el.name === 'message') { composer.text = el.value; autosize(el); updateSendState(); }
   });
 
   document.addEventListener('keydown', function (e) {
     if (e.key !== 'Escape') return;
     if (!lightbox.hidden) { lightbox.hidden = true; return; }
     if (ui.open) closePanel();
+  });
+
+  rootEl.addEventListener('keydown', function (e) {
+    if (e.target && e.target.name === 'message' && e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault();
+      sendCurrent();
+    }
   });
 
   store.subscribe(function onStoreChange() {

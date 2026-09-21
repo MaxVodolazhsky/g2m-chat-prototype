@@ -2,10 +2,17 @@
 
 Статичный HTML-прототип виджета «пользователь ↔ поддержка» и панели поддержки. Без сборки и бэкенда: данные в `localStorage`, вкладки синхронизируются через событие `storage`.
 
+## Онлайн-демо
+
+- Пользователь: https://maxvodolazhsky.github.io/g2m-chat-prototype/
+- Поддержка: https://maxvodolazhsky.github.io/g2m-chat-prototype/admin.html
+
+Обе страницы открывать в одном браузере в двух вкладках.
+
 ## Запуск
 
 ```bash
-cd prototype/chat-widget
+cd g2m-chat-prototype
 python3 -m http.server 8765
 ```
 

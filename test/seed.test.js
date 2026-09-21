@@ -55,3 +55,12 @@ test('seedIfEmpty: заполняет пустой store один раз', () =>
   assert.equal(store.listChats().length, 5);
   assert.deepEqual(store.listChats({ userId: 'u1' }).map((c) => c.id), ['c_seed1', 'c_seed2', 'c_seed3']);
 });
+
+test('TINY_PNG — валидный PNG 64x40', () => {
+  const b64 = TINY_PNG.replace(/^data:image\/png;base64,/, '');
+  const buf = Buffer.from(b64, 'base64');
+  assert.equal(buf.subarray(0, 8).toString('hex'), '89504e470d0a1a0a');
+  assert.equal(buf.subarray(12, 16).toString('ascii'), 'IHDR');
+  assert.equal(buf.readUInt32BE(16), 64);
+  assert.equal(buf.readUInt32BE(20), 40);
+});

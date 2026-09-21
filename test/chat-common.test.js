@@ -66,3 +66,9 @@ test('TOPIC_CODES и MAX_IMAGE_BYTES', () => {
   assert.deepEqual(C.TOPIC_CODES, ['code_issue', 'payout', 'account', 'other']);
   assert.equal(C.MAX_IMAGE_BYTES, 1048576);
 });
+
+test('readImageFile отклоняет не-картинку и слишком большой файл', async () => {
+  await assert.rejects(C.readImageFile({ type: 'text/css', size: 10 }), /imageOnly/);
+  await assert.rejects(C.readImageFile({ type: 'image/png', size: C.MAX_IMAGE_BYTES + 1 }), /imageTooLarge/);
+  await assert.rejects(C.readImageFile(null), /imageOnly/);
+});

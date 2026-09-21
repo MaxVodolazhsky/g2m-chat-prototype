@@ -161,9 +161,47 @@
     headerEl.innerHTML = iconButton('back', 'back', ICONS.back) +
       '<div class="g2m-chat-header-text"><div class="g2m-chat-title">' + esc(t('newChat')) + '</div></div>' +
       iconButton('close', 'close', ICONS.close);
-    bodyEl.innerHTML = '<div class="g2m-chat-empty">…</div>';
-    footerEl.innerHTML = '';
+
+    var chips = C.TOPIC_CODES.map(function (code) {
+      var active = draft.topicCode === code;
+      return '<button type="button" class="g2m-chat-chip' + (active ? ' g2m-chat-chip--active' : '') + '" ' +
+        'data-action="pick-topic" data-code="' + code + '" role="radio" aria-checked="' + active + '">' +
+        esc(t('topics.' + code)) + '</button>';
+    }).join('');
+
+    var errorLine = function (key) { return key ? '<div class="g2m-chat-error">' + esc(t(key)) + '</div>' : ''; };
+    var customTopic = draft.topicCode === 'other'
+      ? '<input class="g2m-chat-input' + (draft.errors.topicTitle ? ' g2m-chat-input--error' : '') + '" name="topicTitle" maxlength="60" ' +
+        'placeholder="' + esc(t('customTopicPlaceholder')) + '" value="' + esc(draft.topicTitle) + '">' + errorLine(draft.errors.topicTitle)
+      : '';
+
+    bodyEl.innerHTML =
+      '<form class="g2m-chat-form" novalidate onsubmit="return false">' +
+        '<div class="g2m-chat-label">' + esc(t('topicLabel')) + '</div>' +
+        '<div class="g2m-chat-chips" role="radiogroup">' + chips + '</div>' + errorLine(draft.errors.topic) +
+        customTopic +
+        '<textarea class="g2m-chat-textarea' + (draft.errors.text ? ' g2m-chat-input--error' : '') + '" name="text" rows="5" ' +
+          'placeholder="' + esc(t('firstMessagePlaceholder')) + '">' + esc(draft.text) + '</textarea>' + errorLine(draft.errors.text) +
+      '</form>';
+
+    footerEl.innerHTML = '<button type="button" class="g2m-chat-btn g2m-chat-btn--primary" data-action="start">' + esc(t('startChat')) + '</button>';
   }
+
+  function startChat() {
+    var errors = {};
+    if (!draft.topicCode) errors.topic = 'topicRequired';
+    if (draft.topicCode === 'other' && !draft.topicTitle.trim()) errors.topicTitle = 'customTopicRequired';
+    if (!draft.text.trim()) errors.text = 'messageRequired';
+    draft.errors = errors;
+    if (Object.keys(errors).length) { renderNew(); return; }
+    var chat = store.createChat({
+      userId: user.id, topicCode: draft.topicCode, topicTitle: draft.topicTitle, createdBy: 'user', text: draft.text
+    });
+    draft = { topicCode: null, topicTitle: '', text: '', errors: {} };
+    composer = { text: '', image: null, error: null };
+    setScreen('chat', chat.id);
+  }
+
   function renderChat() {
     var chat = store.getChat(ui.chatId);
     if (!chat) { setScreen('list'); return; }
@@ -207,8 +245,22 @@
         lightbox.hidden = false;
         break;
       case 'lightbox-close': lightbox.hidden = true; break;
+      case 'pick-topic':
+        draft.topicCode = target.getAttribute('data-code');
+        draft.errors = {};
+        renderNew();
+        if (draft.topicCode === 'other') { var ti = bodyEl.querySelector('input[name="topicTitle"]'); if (ti) ti.focus(); }
+        break;
+      case 'start': startChat(); break;
       default: break;
     }
+  });
+
+  rootEl.addEventListener('input', function (e) {
+    var el = e.target;
+    if (!el || !el.name) return;
+    if (el.name === 'topicTitle') draft.topicTitle = el.value;
+    else if (el.name === 'text') draft.text = el.value;
   });
 
   document.addEventListener('keydown', function (e) {

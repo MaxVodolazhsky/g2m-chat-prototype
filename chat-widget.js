@@ -347,7 +347,12 @@
     saveUi();
     render();
   }
-  function openPanel() { ui.open = true; saveUi(); render(); }
+  function openPanel() {
+    ui.open = true;
+    saveUi();
+    if (ui.screen === 'chat' && ui.chatId) store.markRead(ui.chatId, 'user');
+    render();
+  }
   function closePanel() { ui.open = false; saveUi(); render(); }
   function openChat(id) {
     if (!store.getChat(id)) return;
@@ -429,6 +434,7 @@
     // на экране 'new' не перерисовываем, чтобы не сбивать ввод
   });
 
+  if (ui.screen === 'chat' && ui.chatId) store.markRead(ui.chatId, 'user');
   render();
 
   root.G2MChatWidget = { store: store, open: openPanel, close: closePanel, render: render };

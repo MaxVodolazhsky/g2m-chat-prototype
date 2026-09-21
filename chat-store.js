@@ -66,6 +66,7 @@
     }
 
     function reload() {
+      if (degraded) return;
       state = load();
       notify();
     }

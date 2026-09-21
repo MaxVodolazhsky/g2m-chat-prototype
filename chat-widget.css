@@ -16,7 +16,8 @@
   -webkit-font-smoothing: antialiased;
 }
 .g2m-chat *, .g2m-chat *::before, .g2m-chat *::after { box-sizing: border-box; }
-.g2m-chat button { font: inherit; cursor: pointer; color: inherit; }
+.g2m-chat button { font: inherit; cursor: pointer; }
+.g2m-chat-item, .g2m-chat-chip, .g2m-chat-btn { color: inherit; }
 .g2m-chat [hidden] { display: none !important; }
 
 /* launcher */
@@ -115,11 +116,11 @@
   padding: 7px 14px; font-size: 13px; font-weight: 500;
 }
 .g2m-chat-chip--active { background: #eff6ff; border-color: var(--g2m-primary); color: var(--g2m-primary); }
-.g2m-chat-input, .g2m-chat-textarea {
+.g2m-chat .g2m-chat-input, .g2m-chat .g2m-chat-textarea {
   width: 100%; font: inherit; font-size: 14px; padding: 10px 12px;
   border: 1px solid var(--g2m-border); border-radius: 10px; background: #fff; color: var(--g2m-text); resize: vertical;
 }
-.g2m-chat-input:focus, .g2m-chat-textarea:focus, .g2m-chat-composer-input:focus {
+.g2m-chat .g2m-chat-input:focus, .g2m-chat .g2m-chat-textarea:focus, .g2m-chat .g2m-chat-composer-input:focus {
   outline: none; border-color: var(--g2m-primary); box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.15);
 }
 .g2m-chat-input--error { border-color: #ef4444; }

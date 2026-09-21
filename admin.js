@@ -267,9 +267,9 @@
         if (state.selectedId && window.confirm(t('closeChatConfirm'))) store.closeChat(state.selectedId);
         break;
       case 'reset':
-        store.reset(Seed.buildSeed());
         state.selectedId = null;
         composer = { text: '', image: null, error: null };
+        store.reset(Seed.buildSeed());
         render();
         break;
       case 'send': sendCurrent(); break;

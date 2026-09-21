@@ -205,6 +205,16 @@ test('reload подхватывает запись другой вкладки �
   assert.equal(calls, 1);
 });
 
+test('reload в degraded-режиме не затирает состояние из памяти', () => {
+  const storage = memStorage();
+  storage.setItem = () => { throw new Error('QuotaExceededError'); };
+  const store = createChatStore({ storage });
+  const chat = userChat(store);
+  store.reload();
+  assert.equal(store.getChat(chat.id).id, chat.id);
+  assert.equal(store.listChats().length, 1);
+});
+
 test('reset: с данными и без', () => {
   const { store } = makeStore();
   store.reset({ chats: [{ id: 'c_x', userId: 'u1', topic: { code: 'payout', title: null }, status: 'open', createdBy: 'user', createdAt: 1, updatedAt: 1, closedAt: null, unreadForUser: 0, unreadForAdmin: 0 }], messages: [] });

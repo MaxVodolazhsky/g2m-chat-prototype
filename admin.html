@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Gift2Money — Support console (chat prototype)</title>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="admin.css">
+</head>
+<body>
+  <header class="topbar">
+    <img class="topbar-logo" src="assets/gift2money_logo.png" alt="gift2money">
+    <span class="topbar-title" data-i18n="adminTitle">Support console</span>
+    <div class="topbar-actions">
+      <button type="button" class="btn btn-primary" data-action="open-modal" data-i18n="newChat">New chat</button>
+      <button type="button" class="btn btn-link" data-action="reset" data-i18n="resetDemo">Reset demo data</button>
+    </div>
+  </header>
+  <div class="banner" id="banner" hidden></div>
+
+  <main class="layout">
+    <aside class="sidebar">
+      <div class="tabs" id="tabs"></div>
+      <div class="chat-list" id="chat-list"></div>
+    </aside>
+    <section class="conversation" id="conversation"></section>
+  </main>
+
+  <div class="modal" id="modal" data-action="close-modal" hidden>
+    <div class="modal-card" id="modal-card"></div>
+  </div>
+  <div class="lightbox" id="lightbox" data-action="lightbox-close" hidden><img alt=""></div>
+
+  <script src="chat-common.js"></script>
+  <script src="chat-store.js"></script>
+  <script src="seed.js"></script>
+  <script src="admin.js"></script>
+</body>
+</html>

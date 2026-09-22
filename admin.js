@@ -11,7 +11,7 @@
   var store = S.createChatStore();
   Seed.seedIfEmpty(store);
 
-  var state = { filter: 'all', selectedId: null, modal: null }; // modal: null | { userId, topicCode, topicTitle, text, errors }
+  var state = { filter: 'all', selectedId: null, modal: null, editingId: null, editText: '' }; // modal: null | { userId, userQuery, userOpen, userIndex, topicCode, topicTitle, text, errors }
   var composer = { text: '', image: null, error: null };
   var errorTimer = null;
 
@@ -20,7 +20,9 @@
     send: '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M2 21l21-9L2 3v7l15 2-15 2z"/></svg>',
     attach: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21.4 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"/></svg>',
     check: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12l4 4L19 6"/></svg>',
-    checkDouble: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12l4 4 8-9"/><path d="M10 16l2 2 10-11"/></svg>'
+    checkDouble: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12l4 4 8-9"/><path d="M10 16l2 2 10-11"/></svg>',
+    edit: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4z"/></svg>',
+    trash: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"/><path d="M8 6V4h8v2"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v6M14 11v6"/></svg>'
   };
 
   var tabsEl = document.getElementById('tabs');
@@ -30,6 +32,8 @@
   var modalCard = document.getElementById('modal-card');
   var bannerEl = document.getElementById('banner');
   var lightbox = document.getElementById('lightbox');
+  var chatOffBanner = document.getElementById('chat-off-banner');
+  var chatToggle = document.querySelector('input[name="chatEnabled"]');
 
   function userName(id) {
     for (var i = 0; i < S.USERS.length; i++) if (S.USERS[i].id === id) return S.USERS[i].name;
@@ -52,6 +56,7 @@
     el.textContent = t(el.getAttribute('data-i18n'));
   });
   bannerEl.textContent = t('storageUnavailable');
+  chatOffBanner.textContent = t('chatOffBanner');
 
   /* ---------- render ---------- */
   function renderTabs() {
@@ -85,18 +90,35 @@
   function renderMessage(m, first, chat) {
     if (m.from === 'system') return '<div class="msg-system">' + esc(C.messagePreview(m)) + '</div>';
     var mine = m.from === 'admin';
+    if (mine && state.editingId === m.id) {
+      return '<div class="msg msg--me' + (first ? ' msg--first' : '') + '"><div class="msg-edit">' +
+        (m.image ? '<img class="msg-img" src="' + esc(m.image) + '" alt="">' : '') +
+        '<textarea class="composer-input msg-edit-input" name="editText" rows="1" placeholder="' + esc(t('messagePlaceholder')) + '">' + esc(state.editText) + '</textarea>' +
+        '<div class="msg-edit-actions">' +
+          '<button type="button" class="btn btn-sm" data-action="cancel-edit">' + esc(t('cancel')) + '</button>' +
+          '<button type="button" class="btn btn-sm btn-primary" data-action="save-edit">' + esc(t('save')) + '</button>' +
+        '</div></div></div>';
+    }
     var ticks = '';
+    var actions = '';
     if (mine) {
       ticks = '<span class="ticks' + (m.readAt ? ' ticks--read' : '') + '" title="' + esc(t(m.readAt ? 'reads.read' : 'reads.sent')) + '">' +
         (m.readAt ? ICONS.checkDouble : ICONS.check) + '</span>';
+      // правка/удаление только своих (админских) сообщений
+      actions = '<div class="msg-actions">' +
+        '<button type="button" class="msg-action" data-action="edit-msg" data-id="' + esc(m.id) + '" title="' + esc(t('edit')) + '" aria-label="' + esc(t('edit')) + '">' + ICONS.edit + '</button>' +
+        '<button type="button" class="msg-action msg-action--danger" data-action="delete-msg" data-id="' + esc(m.id) + '" title="' + esc(t('delete')) + '" aria-label="' + esc(t('delete')) + '">' + ICONS.trash + '</button>' +
+      '</div>';
     }
     return '<div class="msg msg--' + (mine ? 'me' : 'them') + (first ? ' msg--first' : '') + '">' +
       (!mine && first ? '<div class="msg-author">' + esc(userName(chat.userId)) + '</div>' : '') +
+      actions +
       '<div class="bubble">' +
         (m.image ? '<img class="msg-img" src="' + esc(m.image) + '" alt="" data-action="lightbox" data-src="' + esc(m.image) + '">' : '') +
         (m.text ? '<div class="msg-text">' + esc(m.text).replace(/\n/g, '<br>') + '</div>' : '') +
       '</div>' +
-      '<div class="msg-meta">' + esc(C.timeLabel(m.createdAt)) + ticks + '</div>' +
+      '<div class="msg-meta">' + esc(C.timeLabel(m.createdAt)) +
+        (m.editedAt ? '<span class="msg-edited">' + esc(t('edited')) + '</span>' : '') + ticks + '</div>' +
     '</div>';
   }
 
@@ -137,6 +159,7 @@
     }
     var active = document.activeElement;
     var hadFocus = !!(active && active.name === 'message');
+    var editFocused = !!(active && active.name === 'editText');
     convEl.innerHTML =
       '<div class="conv-header">' +
         '<div class="conv-header-text">' +
@@ -155,7 +178,53 @@
     }
     var file = convEl.querySelector('input[type="file"]');
     if (file) file.addEventListener('change', onFileChosen);
+    var et = convEl.querySelector('textarea[name="editText"]');
+    if (et) {
+      autosize(et);
+      if (editFocused) { et.focus(); et.selectionStart = et.selectionEnd = et.value.length; }
+    }
     scrollToBottom();
+  }
+
+  function renderChatSwitch() {
+    var on = store.isChatEnabled();
+    chatToggle.checked = on;
+    chatOffBanner.hidden = on;
+  }
+
+  function startEdit(id) {
+    var msg = store.getMessages(state.selectedId || '').filter(function (x) { return x.id === id; })[0];
+    if (!msg || msg.from !== 'admin') return;
+    state.editingId = msg.id;
+    state.editText = msg.text;
+    renderConversation();
+    var et = convEl.querySelector('textarea[name="editText"]');
+    if (et) { et.focus(); et.selectionStart = et.selectionEnd = et.value.length; }
+  }
+
+  function cancelEdit() {
+    state.editingId = null;
+    state.editText = '';
+    renderConversation();
+  }
+
+  function saveEdit() {
+    var id = state.editingId;
+    if (!id) return;
+    var msg = store.getMessages(state.selectedId || '').filter(function (x) { return x.id === id; })[0];
+    if (!msg) { cancelEdit(); return; }
+    var text = state.editText;
+    if (!text.trim() && !msg.image) return; // пустой текст без картинки не сохраняем
+    if (text.trim() === msg.text) { cancelEdit(); return; }
+    state.editingId = null;
+    state.editText = '';
+    try {
+      store.editMessage(id, text); // persist → notify → renderConversation с уже закрытой формой
+    } catch (err) {
+      state.editingId = id;
+      state.editText = text;
+    }
+    renderConversation();
   }
 
   function highlightMatch(name, q) {
@@ -238,6 +307,7 @@
 
   function render() {
     bannerEl.hidden = !store.isDegraded();
+    renderChatSwitch();
     renderTabs();
     renderList();
     renderConversation();
@@ -249,6 +319,8 @@
     if (!store.getChat(id)) return;
     state.selectedId = id;
     composer = { text: '', image: null, error: null };
+    state.editingId = null;
+    state.editText = '';
     store.markRead(id, 'admin');
     renderList();
     renderConversation();
@@ -335,6 +407,14 @@
       case 'close-chat':
         if (state.selectedId && window.confirm(t('closeChatConfirm'))) store.closeChat(state.selectedId);
         break;
+      case 'edit-msg': startEdit(target.getAttribute('data-id')); break;
+      case 'cancel-edit': cancelEdit(); break;
+      case 'save-edit': saveEdit(); break;
+      case 'delete-msg':
+        if (window.confirm(t('deleteConfirm'))) {
+          try { store.deleteMessage(target.getAttribute('data-id')); } catch (err) { /* чужое сообщение: кнопки у него нет */ }
+        }
+        break;
       case 'reset':
         state.selectedId = null;
         composer = { text: '', image: null, error: null };
@@ -358,6 +438,11 @@
       autosize(el);
       var b = convEl.querySelector('.sendbtn');
       if (b) b.disabled = !canSend();
+    } else if (el.name === 'editText') {
+      state.editText = el.value;
+      autosize(el);
+    } else if (el.name === 'chatEnabled') {
+      if (e.type === 'change') store.setChatEnabled(el.checked); // checkbox шлёт и input, и change
     } else if (state.modal) {
       if (el.name === 'userQuery') {
         if (e.type !== 'input') return; // 'change' на blur не должен заново открывать список
@@ -382,6 +467,10 @@
   });
 
   document.addEventListener('keydown', function (e) {
+    if (e.target && e.target.name === 'editText') {
+      if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); saveEdit(); return; }
+      if (e.key === 'Escape') { e.preventDefault(); cancelEdit(); return; }
+    }
     if (state.modal && e.target && e.target.name === 'userQuery') {
       var m = state.modal;
       var results = S.findUsers(m.userQuery, 8);
@@ -419,9 +508,14 @@
 
   store.subscribe(function () {
     bannerEl.hidden = !store.isDegraded();
+    renderChatSwitch();
     if (state.selectedId) {
       if (!store.getChat(state.selectedId)) state.selectedId = null;
       else store.markRead(state.selectedId, 'admin'); // no-op, если нечего отмечать
+    }
+    if (state.editingId && !store.getMessages(state.selectedId || '').some(function (x) { return x.id === state.editingId; })) {
+      state.editingId = null; // редактируемое сообщение исчезло (удалено в другой вкладке)
+      state.editText = '';
     }
     renderList();
     renderConversation();

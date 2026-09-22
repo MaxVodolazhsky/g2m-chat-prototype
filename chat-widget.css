@@ -19,6 +19,8 @@
 .g2m-chat button { font: inherit; cursor: pointer; }
 .g2m-chat-item, .g2m-chat-chip, .g2m-chat-btn { color: inherit; }
 .g2m-chat [hidden] { display: none !important; }
+.g2m-chat--off { display: none !important; } /* чат выключен в консоли поддержки */
+.g2m-chat-edited { font-style: italic; }
 
 /* launcher */
 .g2m-chat-launcher {

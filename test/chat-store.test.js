@@ -252,3 +252,100 @@ test('findUsers возвращает копии', () => {
   u.name = 'hacked';
   assert.equal(USERS[0].name, 'demo@gift2money.com');
 });
+
+// ---------- выключатель чата ----------
+
+test('chatEnabled: по умолчанию включён, сохраняется, setChatEnabled уведомляет и идемпотентен', () => {
+  const { store, storage } = makeStore();
+  assert.equal(store.isChatEnabled(), true);
+  let calls = 0;
+  store.subscribe(() => { calls += 1; });
+  store.setChatEnabled(false);
+  assert.equal(store.isChatEnabled(), false);
+  assert.equal(calls, 1);
+  assert.equal(JSON.parse(storage.raw()).settings.chatEnabled, false);
+  store.setChatEnabled(false);                 // без изменений — без записи
+  assert.equal(calls, 1);
+  store.setChatEnabled(true);
+  assert.equal(store.isChatEnabled(), true);
+  assert.equal(calls, 2);
+});
+
+test('chatEnabled: старые данные без settings читаются как включённые; reset возвращает включённое', () => {
+  const legacy = JSON.stringify({ version: 1, chats: [], messages: [] });
+  const s1 = createChatStore({ storage: memStorage({ [STORAGE_KEY]: legacy }) });
+  assert.equal(s1.isChatEnabled(), true);
+  const { store } = makeStore();
+  store.setChatEnabled(false);
+  store.reset();
+  assert.equal(store.isChatEnabled(), true);
+});
+
+// ---------- правка и удаление своих сообщений админом ----------
+
+test('editMessage: меняет текст своего сообщения, ставит editedAt, обрезает пробелы', () => {
+  const { store } = makeStore();
+  const chat = userChat(store);
+  const m = store.sendMessage(chat.id, { from: 'admin', text: 'draft' });
+  assert.equal(m.editedAt, null);
+  const edited = store.editMessage(m.id, '  fixed text  ');
+  assert.equal(edited.text, 'fixed text');
+  assert.ok(edited.editedAt > 0);
+  const stored = store.getMessages(chat.id).find((x) => x.id === m.id);
+  assert.equal(stored.text, 'fixed text');
+  assert.equal(stored.editedAt, edited.editedAt);
+});
+
+test('editMessage: запрещено для чужих и системных, пустого текста и неизвестного id', () => {
+  const { store } = makeStore();
+  const chat = userChat(store);
+  const userMsg = store.getMessages(chat.id)[0];
+  const adminMsg = store.sendMessage(chat.id, { from: 'admin', text: 'a' });
+  store.closeChat(chat.id);
+  const sysMsg = store.getMessages(chat.id).find((x) => x.from === 'system');
+  assert.throws(() => store.editMessage(userMsg.id, 'x'), /own/);
+  assert.throws(() => store.editMessage(sysMsg.id, 'x'), /own/);
+  assert.throws(() => store.editMessage(adminMsg.id, '   '), /empty/);
+  assert.throws(() => store.editMessage('m_missing', 'x'), /not found/);
+  assert.equal(store.getMessages(chat.id)[0].text, 'hello');
+});
+
+test('editMessage: сообщение только с картинкой можно оставить без текста', () => {
+  const { store } = makeStore();
+  const chat = userChat(store);
+  const m = store.sendMessage(chat.id, { from: 'admin', text: '', image: 'data:image/png;base64,AAAA' });
+  const edited = store.editMessage(m.id, '');
+  assert.equal(edited.text, '');
+  assert.ok(edited.editedAt);
+});
+
+test('deleteMessage: удаляет своё сообщение и уменьшает unreadForUser, если оно не прочитано', () => {
+  const { store } = makeStore();
+  const chat = userChat(store);
+  const a1 = store.sendMessage(chat.id, { from: 'admin', text: 'one' });
+  const a2 = store.sendMessage(chat.id, { from: 'admin', text: 'two' });
+  assert.equal(store.getChat(chat.id).unreadForUser, 2);
+  assert.equal(store.deleteMessage(a1.id), true);
+  assert.equal(store.getChat(chat.id).unreadForUser, 1);
+  assert.deepEqual(store.getMessages(chat.id).map((x) => x.text), ['hello', 'two']);
+  store.markRead(chat.id, 'user');
+  assert.equal(store.deleteMessage(a2.id), true);
+  assert.equal(store.getChat(chat.id).unreadForUser, 0);     // прочитанное не трогает счётчик
+  assert.equal(store.getMessages(chat.id).length, 1);
+});
+
+test('deleteMessage: чужие и системные не удаляются, неизвестный id → false, уведомление только при удалении', () => {
+  const { store } = makeStore();
+  const chat = userChat(store);
+  const userMsg = store.getMessages(chat.id)[0];
+  store.closeChat(chat.id);
+  const sysMsg = store.getMessages(chat.id).find((x) => x.from === 'system');
+  let calls = 0;
+  store.subscribe(() => { calls += 1; });
+  assert.throws(() => store.deleteMessage(userMsg.id), /own/);
+  assert.throws(() => store.deleteMessage(sysMsg.id), /own/);
+  assert.equal(store.deleteMessage('m_missing'), false);
+  assert.equal(calls, 0);
+  assert.equal(store.getMessages(chat.id).length, 2);
+  assert.equal(store.getChat(chat.id).unreadForAdmin, 1);
+});

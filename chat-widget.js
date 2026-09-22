@@ -109,6 +109,7 @@
 
   /* ---------- render ---------- */
   function render() {
+    rootEl.classList.toggle('g2m-chat--off', !store.isChatEnabled()); // выключено админом → виджета нет
     rootEl.setAttribute('data-open', ui.open ? 'true' : 'false');
     panel.hidden = !ui.open;
     launcher.setAttribute('aria-expanded', ui.open ? 'true' : 'false');
@@ -260,7 +261,8 @@
         (m.image ? '<img class="g2m-chat-msg-img" src="' + esc(m.image) + '" alt="" data-action="lightbox" data-src="' + esc(m.image) + '">' : '') +
         (m.text ? '<div class="g2m-chat-msg-text">' + esc(m.text).replace(/\n/g, '<br>') + '</div>' : '') +
       '</div>' +
-      '<div class="g2m-chat-msg-meta">' + esc(C.timeLabel(m.createdAt)) + ticks + '</div>' +
+      '<div class="g2m-chat-msg-meta">' + esc(C.timeLabel(m.createdAt)) +
+        (m.editedAt ? '<span class="g2m-chat-edited">' + esc(t('edited')) + '</span>' : '') + ticks + '</div>' +
     '</div>';
   }
 
@@ -418,8 +420,10 @@
   });
 
   store.subscribe(function onStoreChange() {
+    var enabled = store.isChatEnabled();
+    rootEl.classList.toggle('g2m-chat--off', !enabled);
     var unread = store.unreadTotal('user', user.id);
-    if (unread > lastUnread) { pulse(); playSound(); }
+    if (unread > lastUnread && enabled) { pulse(); playSound(); }
     lastUnread = unread;
     updateBadge();
     updateBanner();

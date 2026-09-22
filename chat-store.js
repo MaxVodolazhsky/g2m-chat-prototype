@@ -39,7 +39,8 @@
     return prefix + Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
   }
 
-  function emptyState() { return { version: VERSION, chats: [], messages: [] }; }
+  function defaultSettings() { return { chatEnabled: true }; }
+  function emptyState() { return { version: VERSION, chats: [], messages: [], settings: defaultSettings() }; }
 
   function clone(o) { return JSON.parse(JSON.stringify(o)); }
 
@@ -64,6 +65,7 @@
         if (!parsed || parsed.version !== VERSION || !Array.isArray(parsed.chats) || !Array.isArray(parsed.messages)) {
           return emptyState();
         }
+        parsed.settings = Object.assign(defaultSettings(), parsed.settings || {}); // старые данные без settings
         return parsed;
       } catch (e) {
         return emptyState();
@@ -124,7 +126,7 @@
     }
 
     function pushMessage(chatId, from, text, image, ts) {
-      var msg = { id: genId('m_'), chatId: chatId, from: from, text: cleanText(text), image: image || null, createdAt: ts, readAt: null };
+      var msg = { id: genId('m_'), chatId: chatId, from: from, text: cleanText(text), image: image || null, createdAt: ts, readAt: null, editedAt: null };
       state.messages.push(msg);
       return msg;
     }
@@ -211,6 +213,46 @@
       persist();
     }
 
+    // ----- выключатель чата (виджет у пользователей скрыт, пока false) -----
+    function isChatEnabled() { return state.settings.chatEnabled !== false; }
+    function setChatEnabled(enabled) {
+      var next = !!enabled;
+      if (isChatEnabled() === next) return;
+      state.settings.chatEnabled = next;
+      persist();
+    }
+
+    // ----- правка и удаление админом СВОИХ сообщений -----
+    function findMessage(id) {
+      for (var i = 0; i < state.messages.length; i++) {
+        if (state.messages[i].id === id) return { msg: state.messages[i], index: i };
+      }
+      return null;
+    }
+
+    function editMessage(messageId, text) {
+      var found = findMessage(messageId);
+      if (!found) throw new Error('message not found');
+      if (found.msg.from !== 'admin') throw new Error('only own (admin) messages can be edited');
+      var clean = cleanText(text);
+      if (!clean && !found.msg.image) throw new Error('empty message');
+      found.msg.text = clean;
+      found.msg.editedAt = now();
+      persist();
+      return clone(found.msg);
+    }
+
+    function deleteMessage(messageId) {
+      var found = findMessage(messageId);
+      if (!found) return false;
+      if (found.msg.from !== 'admin') throw new Error('only own (admin) messages can be deleted');
+      var chat = find(found.msg.chatId);
+      if (chat && !found.msg.readAt && chat.unreadForUser > 0) chat.unreadForUser -= 1;
+      state.messages.splice(found.index, 1);
+      persist();
+      return true;
+    }
+
     function unreadTotal(role, userId) {
       return state.chats.reduce(function (sum, c) {
         if (userId && c.userId !== userId) return sum;
@@ -228,7 +270,7 @@
 
     function reset(data) {
       state = data
-        ? { version: VERSION, chats: clone(data.chats || []), messages: clone(data.messages || []) }
+        ? { version: VERSION, chats: clone(data.chats || []), messages: clone(data.messages || []), settings: defaultSettings() }
         : emptyState();
       persist();
     }
@@ -255,7 +297,11 @@
       reset: reset,
       reload: reload,
       isDegraded: isDegraded,
-      isEmpty: isEmpty
+      isEmpty: isEmpty,
+      isChatEnabled: isChatEnabled,
+      setChatEnabled: setChatEnabled,
+      editMessage: editMessage,
+      deleteMessage: deleteMessage
     };
   }
 

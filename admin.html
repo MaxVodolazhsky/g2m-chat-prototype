@@ -12,11 +12,17 @@
     <img class="topbar-logo" src="assets/gift2money_logo.png" alt="gift2money">
     <span class="topbar-title" data-i18n="adminTitle">Support console</span>
     <div class="topbar-actions">
+      <label class="switch">
+        <input type="checkbox" name="chatEnabled">
+        <span class="switch-track"></span>
+        <span class="switch-label" data-i18n="chatEnabled">Chat enabled</span>
+      </label>
       <button type="button" class="btn btn-primary" data-action="open-modal" data-i18n="newChat">New chat</button>
       <button type="button" class="btn btn-link" data-action="reset" data-i18n="resetDemo">Reset demo data</button>
     </div>
   </header>
   <div class="banner" id="banner" hidden></div>
+  <div class="banner banner--off" id="chat-off-banner" hidden></div>
 
   <main class="layout">
     <aside class="sidebar">
